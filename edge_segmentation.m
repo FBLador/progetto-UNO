@@ -1,37 +1,26 @@
 function edge_segmentation()
-    % Chiude tutte le figure aperte e pulisce l'ambiente di lavoro
     close all;
-    clear;
 
-    % Carica e mostra le immagini tipica e overlay
-    typical_img = 'training_set/uno-test-23.jpg';
-    overlay_img = 'training_set/uno-test-20.jpg';
-    displayImages(typical_img, overlay_img);
+    % Carica l'immagine
+    training_img = 'training_set/uno-test-14.jpg';
     
     % Estrazione e visualizzazione degli edge
-    edgeDetection(typical_img, overlay_img);
+    edgeDetection(training_img);
     
     % Edge linking e visualizzazione del risultato
-    linkedEdges = edgeLinking(typical_img);
+    linkedEdges = edgeLinking(training_img);
     figure('Name', 'Edge Linked Image');
     imshow(linkedEdges);
     title('Linked Edges');
     
-    % Filtraggio dei contorni e correzione dell'orientamento
-    filteredContours = filterAndCorrectContours(linkedEdges);
-    figure('Name', 'Filtered and Oriented Contours');
+    % Filtraggio dei contorni
+    filteredContours = filterContours(linkedEdges);
+    figure('Name', 'Filtered Contours');
     imshow(filteredContours);
-    title('Filtered and Oriented Contours');
-end
+    title('Filtered Contours');
 
-function displayImages(typical_img_path, overlay_img_path)
-    % Mostra le immagini e le loro componenti Cb e Cr
-    typical_img = imread(typical_img_path);
-    overlay_img = imread(overlay_img_path);
-    
-    figure('Name', 'Componenti Cb e Cr');
-    displayChannelComponents(typical_img, 'Tipica');
-    %displayChannelComponents(overlay_img, 'Overlay');
+    % Estrazione carte e orientamento
+    extractAndRotateCards(filteredContours, imread(training_img));
 end
 
 function displayChannelComponents(img, titlePrefix)
@@ -40,14 +29,12 @@ function displayChannelComponents(img, titlePrefix)
     subplot(2,2,2), imshow(im(:,:,3)), title([titlePrefix, ' - Cr']);
 end
 
-function edgeDetection(typical_img_path, overlay_img_path)
+function edgeDetection(training_img_path)
     % Rilevamento degli edge per le immagini tipica e overlay
-    typical_img = imread(typical_img_path);
-    overlay_img = imread(overlay_img_path);
+    training_img = imread(training_img_path);
     
     figure('Name', 'Rilevamento Edge');
-    detectAndDisplayEdges(rgb2ycbcr(typical_img), 'Tipica');
-    %detectAndDisplayEdges(rgb2ycbcr(overlay_img), 'Overlay');
+    detectAndDisplayEdges(rgb2ycbcr(training_img), 'Tipica');
 end
 
 function detectAndDisplayEdges(im, titlePrefix)
@@ -85,7 +72,7 @@ function linkedEdges = edgeLinking(img_path)
     linkedEdges = bwareaopen(openedEdges, 1000);
 end
 
-function filteredContours = filterAndCorrectContours(binaryImage)
+function filteredContours = filterContours(binaryImage)
     % Identifica i contorni nell'immagine binaria
     [contours, ~] = bwboundaries(binaryImage, 'noholes');
     
@@ -100,19 +87,33 @@ function filteredContours = filterAndCorrectContours(binaryImage)
         contourArea = polyarea(contour(:,2), contour(:,1));
         
         % Filtra i contorni basati sull'area
-        if contourArea > 500 % esempio di soglia, da aggiustare
-            % Calcola il rettangolo di delimitazione minimo e l'orientamento
-            rect = minAreaRect(contour, size(binaryImage));
-            
+        if contourArea > 1000 % esempio di soglia, da aggiustare
+          
             % Aggiungi il contorno all'immagine filtrata
             filteredContours = filteredContours | poly2mask(contour(:,2), contour(:,1), size(binaryImage, 1), size(binaryImage, 2));
         end
     end
 end
 
-function rect = minAreaRect(contour, imageSize)
-    % Calcola il rettangolo di delimitazione minimo per il contorno fornito
-    % imageSize è un vettore [altezza, larghezza] dell'immagine
-    props = regionprops(poly2mask(contour(:,2), contour(:,1), imageSize(1), imageSize(2)), 'BoundingBox', 'Orientation');
-    rect = props.BoundingBox;
+function extractAndRotateCards(binaryImage, originalImage)
+    % Identifica le proprietà delle regioni bianche (carte)
+    props = regionprops(binaryImage, 'BoundingBox', 'Orientation', 'MajorAxisLength', 'MinorAxisLength');
+    
+    for i = 1:length(props)
+        % Estrai il BoundingBox e l'Orientation di ciascuna carta
+        boundingBox = round(props(i).BoundingBox);
+        orientation = props(i).Orientation;
+        correctedOrientation = orientation + 90;
+        
+        % Estrai l'immagine della carta utilizzando il BoundingBox
+        cardImage = imcrop(originalImage, boundingBox);
+        
+        % Ruota l'immagine della carta in base al suo orientamento
+        rotatedCardImage = imrotate(cardImage, -correctedOrientation , 'bilinear', 'crop');
+        
+        % Visualizza l'immagine estratta e ruotata
+        figure, imshow(rotatedCardImage);
+        title(['Card ', num2str(i)]);
+    end
 end
+
