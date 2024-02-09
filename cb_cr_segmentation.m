@@ -2,7 +2,7 @@ close all;
 clear;
 
 poor_lightinng = imread("data_set/uno-test-15.jpg");
-good_lightinng = imread("data_set/uno-test-24.jpg");
+good_lightinng = imread("data_set/uno-test-25.jpg");
 
 
 im = rgb2ycbcr(poor_lightinng);    %YCbCr poor_lightning

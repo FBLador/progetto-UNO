@@ -1,7 +1,7 @@
 close all;
 clear;
 
-in = imread("data_set/uno-test-01.jpg");
+in = imread("data_set/uno-test-23.jpg");
 image = rgb2ycbcr(in);
 channel_cb = image(:,:,2);
 binarized = imbinarize(channel_cb, graythresh(channel_cb));
