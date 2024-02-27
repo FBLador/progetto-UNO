@@ -10,7 +10,7 @@ for i = 4 : numel(data_set_folders) %parto da 4 per saltare gli elementi non nec
         current_folder_content = dir("data/" + current_folder_name);
 
         for j = 4 : numel(current_folder_content)
-            fprintf(images_list, current_folder_content(j).name + "\n");
+            fprintf(images_list, current_folder_name + "/" + current_folder_content(j).name + "\n");
             fprintf(labels_list, current_folder_name + "\n");
         end
     end
