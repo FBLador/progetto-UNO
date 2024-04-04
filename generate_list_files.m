@@ -10,10 +10,21 @@ for i = 4 : numel(data_set_folders) %parto da 4 per saltare gli elementi non nec
         current_folder_content = dir("data/" + current_folder_name);
 
         for j = 4 : numel(current_folder_content)
-            fprintf(images_list, current_folder_name + "/" + current_folder_content(j).name + "\n");
+            %rinomino le immagini nel dataset
+            estensione = split(current_folder_content(j).name, ".");
+            estensione = estensione{size(estensione, 1)};
+            oldfilename = "data/" + current_folder_name + "/" + current_folder_content(j).name;
+            newfilename = "data/" + current_folder_name + "/"+current_folder_name+"_" + (j-3) + "."+estensione;
+            
+            try
+                movefile(oldfilename, newfilename);
+            catch
+            end
+
+            %scrivo nei .list
+            fprintf(images_list, newfilename + "\n");
             fprintf(labels_list, current_folder_name + "\n");
         end
     end
-
 end
 
