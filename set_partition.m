@@ -2,7 +2,7 @@ load("features_data.mat");
 
 %partiziona il data set in training e test set, con 20% di dati per il test
 %e resto per il training
-cv = cvpartition(labels, "HoldOut", 0.3);
+cv = cvpartition(labels, "HoldOut", 0.2);
 
 %creo una struttura train con dentro le immagini che sono state scelte da
 %cvpartition come immagini di training, faccio lo stesso con il resto

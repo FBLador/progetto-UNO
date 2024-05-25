@@ -36,7 +36,7 @@ subplot(2,2,4), imshow(channel_cr_good), title("Cr good lightning");
 % subplot(2,3,5), imshow(channel_s_good), title("S good lightning");
 % subplot(2,3,6), imshow(channel_v_good), title("V good lightning");
 
-figure(2),  imshow(niblack(channel_cr_good, [11, 11]));
+%figure(2),  imshow(niblack(channel_cr_good, [11, 11]));
 
 % I = im2double(imread('medtest.png'));
 % x=198; y=359;

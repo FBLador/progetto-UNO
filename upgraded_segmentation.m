@@ -8,24 +8,64 @@ function upgraded_segmentation()
     for i = 4 : numel(data_set_folder)
         
         %Carica immagine
-        training_img = imread("./data_set/" + data_set_folder(i).name);
+        testImage = imread("./data_set/" + data_set_folder(i).name);
         %Edge linking e visualizzazione del risultato
-        linkedEdges = edgeWithSobelAndLinking(training_img, showDebugImages);       
+        linkedEdges = edgeWithSobelAndLinking(testImage, showDebugImages);       
         %Riempimento buchi
         segmentedImage = fillHoles(linkedEdges, showDebugImages);
-        
+        segmentedImage = imbinarize(segmentedImage);
+
+        %Estrazione carte, orientamento e ricezione dell'array di immagini
+        cardImages = extractAndRotateCards(segmentedImage, testImage);
+
+        %Predico il tipo della carta estratta dalla foto
+        %SVMClassifier = load("SVMClassifier.mat");
+        simpleCNNClassifier = load("SimpleCNNClassifier.mat");
+        net = simpleCNNClassifier.net;
+        imageSize = net.Layers(1).InputSize;
+
+        predictedLabels = strings(1, length(cardImages));
+        confidences = zeros(length(cardImages));
+        classes = {'back', 'card_0' , 'card_1', 'card_2', 'card_3' , 'card_4', 'card_5', 'card_6' , 'card_7', 'card_8', 'card_9' , 'draw_card', 'reverse_card', 'skip_card', 'wild' , 'wild_draw'};
+        for j = 1 : length(cardImages)
+            % --- Per BoW_SURF_SVM ---
+
+            %[predictedLabelIndex, scores] = predict(SVMClassifier, cardImages{j});
+            %predictedLabel = SVMClassifier.Labels{predictedLabelIndex};
+            %predictedLabels(j) = predictedLabel;
+
+            % --- Fine BoW_SURF_SVM ---
+
+
+
+            % --- Per SimpleCNN ---
+            im = imresize3(cardImages{j}, imageSize);
+            im = imgaussfilt(im, 1);
+
+            scores = predict(net, single(im));
+            predictedLabel = classes{find(scores == max(scores))}
+            predictedLabels(j) = predictedLabel;
+            confidences(j) = scores(find(scores == max(scores))) * 100;
+ 
+            % --- Fine SimpleCNN ---
+        end
+
         %Disegna le bounding box
-        BBImage = draw_boundingbox(segmentedImage, training_img);
+        [image_with_text, boundingboxes] = drawBoundingbox(segmentedImage, testImage, predictedLabels, confidences);
 
-        %-----OLD MARCELLO-----
-        %channel_cb = training_img(:,:,2);
-        %segmented = imfill(imbinarize(channel_cb, graythresh(channel_cb)), "holes");
+        if showDebugImages
+            f = figure("Name", data_set_folder(i).name), f.WindowState = "maximized";
+            subplot(1, 3, 1), imshow(testImage);
+            subplot(1, 3, 2), imshow(segmentedImage);
+            subplot(1, 3, 3), imshow(image_with_text);
+        end
 
-        f = figure("Name", data_set_folder(i).name), f.WindowState = "maximized";
-        subplot(1, 3, 1), imshow(training_img);
-        subplot(1, 3, 2), imshow(segmentedImage);
-        subplot(1, 3, 3), imshow(BBImage);
-
+        %disegna un rettangolo attorno all'immagine
+        for k = 1 : length(boundingboxes)
+            thisBB = boundingboxes(k).BoundingBox;
+            rectangle('Position', [thisBB(1),thisBB(2),thisBB(3),thisBB(4)], 'EdgeColor','r','LineWidth',2 )
+        end
+        
         close all;
     end
 end
@@ -90,7 +130,7 @@ function filledImage = fillHoles(im, debug_flag)
     mask = mask - temp;
     %Etichetto le componenti connesse dell'inverso dell'immagine segmentata
     labeled_mask = bwlabel(mask);
-    %filtro le componenti connesse (elimino sfondo e carte complete
+    %filtro le componenti connesse (elimino sfondo e carte complete)
     final_mask = labeled_mask > 1;
 
     %l'immagine finale è datta dalla segmentazione iniziale più la maschera
@@ -125,5 +165,56 @@ function filteredContours = filterContours(binaryImage, debug_flag)
     
     if debug_flag
         figure("Name", "Risultato finale con i contorni filtrati"), imshow(filteredContours);
+    end
+end
+
+function [image_with_text, boundingboxes] = drawBoundingbox(segmented_image, original_image, predicted_labels, confidences)
+    %The regionprops function measures properties such as area, centroid, and bounding box, for each object (connected component) in an image
+    %segmented_image = imbinarize(segmented_image);
+    boundingboxes = regionprops(segmented_image, "BoundingBox");
+    areas = regionprops(segmented_image, "Area");
+    
+    %inserisce testo per ogni bounding box
+    image_with_text = original_image;
+    for k = 1 : length(boundingboxes)
+        thisBB = boundingboxes(k).BoundingBox;
+        
+        %calcola il centro della boundingbox
+        x = thisBB(1) + thisBB(3)/2;
+        y = thisBB(2) + thisBB(4)/2;
+        
+        %positions = [positions; x, y];
+        
+        if areas(k).Area > 30000 && areas(k).Area < 35000
+            image_with_text = insertText(image_with_text, [x, y], predicted_labels(k) + " - " + confidences(k) + "%, colore", FontSize=18, TextBoxColor="red");
+        else
+            image_with_text = insertText(image_with_text, [x, y], "unknown", FontSize=18, TextBoxColor="black");
+        end
+    end
+    
+    figure(1), imshow(image_with_text);
+end
+
+function cardImages = extractAndRotateCards(binaryImage, originalImage)
+    % Identifica le proprietà delle regioni bianche (carte)
+    props = regionprops(binaryImage, 'BoundingBox', 'Orientation', 'MajorAxisLength', 'MinorAxisLength');
+    
+    % Inizializza un array per memorizzare le immagini delle carte
+    cardImages = {};
+    
+    for i = 1:length(props)
+        % Estrai il BoundingBox e l'Orientation di ciascuna carta
+        boundingBox = round(props(i).BoundingBox);
+        orientation = props(i).Orientation;
+        correctedOrientation = orientation + 90;
+        
+        % Estrai l'immagine della carta utilizzando il BoundingBox
+        cardImage = imcrop(originalImage, boundingBox);
+        
+        % Ruota l'immagine della carta in base al suo orientamento
+        rotatedCardImage = imrotate(cardImage, -correctedOrientation , 'bilinear', 'crop');
+        
+        % Aggiungi l'immagine ruotata all'array
+        cardImages{end+1} = cardImage;
     end
 end
