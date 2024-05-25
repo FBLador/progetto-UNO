@@ -2,16 +2,13 @@ function edge_segmentation()
     close all;
 
     % Carica l'immagine
-    training_img = 'data_set/uno-test-26.jpg';
+    training_img = 'data_set/uno-test-27.jpg';
 
     % Estrazione e visualizzazione degli edge
     edgeDetection(training_img);
     
     % Edge linking e visualizzazione del risultato
     linkedEdges = edgeLinking(training_img);
-    figure('Name', 'Edge Linked Image');
-    imshow(linkedEdges);
-    title('Linked Edges');
     
     % Filtraggio dei contorni
     filteredContours = filterContours(linkedEdges);
@@ -50,15 +47,15 @@ function edgeDetection(training_img_path)
     % Rilevamento degli edge per le immagini tipica e overlay
     training_img = imread(training_img_path);
     
-    figure('Name', 'Rilevamento Edge');
+    %figure('Name', 'Rilevamento Edge');
     detectAndDisplayEdges(rgb2ycbcr(training_img), 'Tipica');
 end
 
 function detectAndDisplayEdges(im, titlePrefix)
     channel_cb = im(:,:,2);
     channel_cr = im(:,:,3);
-    subplot(2,2,1), imshow(edge(channel_cb)), title([titlePrefix, ' - Cb']);
-    subplot(2,2,2), imshow(edge(channel_cr)), title([titlePrefix, ' - Cr']);
+    %subplot(2,2,1), imshow(edge(channel_cb)), title([titlePrefix, ' - Cb']);
+    %subplot(2,2,2), imshow(edge(channel_cr)), title([titlePrefix, ' - Cr']);
 end
 
 function linkedEdges = edgeLinking(img_path)
@@ -71,7 +68,7 @@ function linkedEdges = edgeLinking(img_path)
     edges = edge(channel_cr);
     
     % Elemento strutturante per operazioni morfologiche
-    se = strel('disk', 1);
+    se = strel('disk', 3);
     
     % Chiusura morfologica per colmare le lacune nei bordi
     closedEdges = imclose(edges, se);
@@ -110,6 +107,12 @@ function filteredContours = filterContours(binaryImage)
             filteredContours = filteredContours | poly2mask(contour(:,2), contour(:,1), size(binaryImage, 1), size(binaryImage, 2));
         end
     end
+
+    % Riempie i buchi nelle regioni connesse dell'immagine binaria
+    filteredContours = imerode(filteredContours, strel('disk', 17));
+    filteredContours = imdilate(filteredContours, strel('disk', 1));
+    filteredContours = imfill(filteredContours, 'holes');
+    filteredContours = imopen(filteredContours, strel('disk', 1));
 end
 
 function cardImages = extractAndRotateCards(binaryImage, originalImage)
@@ -130,6 +133,7 @@ function cardImages = extractAndRotateCards(binaryImage, originalImage)
         
         % Estrai la maschera della regione corrispondente
         cardMask = imcrop(binaryImage, boundingBox);
+   
         
         % Applica la maschera alla carta per mantenere solo i pixel della carta
         cardImageMasked = bsxfun(@times, cardImage, cast(cardMask, 'like', cardImage));
