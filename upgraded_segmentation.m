@@ -1,21 +1,23 @@
 function upgraded_segmentation()
     close all;
     
-    %Debug flag
+    % Debug flag
     showDebugImages = false;
 
     data_set_folder = dir("data_set");
     for i = 4 : numel(data_set_folder)
         
-        %Carica immagine
+        % Carica immagine
         testImage = imread("./data_set/" + data_set_folder(i).name);
-        %Edge linking e visualizzazione del risultato
-        linkedEdges = edgeWithSobelAndLinking(testImage, showDebugImages);       
-        %Riempimento buchi
+
+        % Edge linking e visualizzazione del risultato
+        linkedEdges = edgeWithSobelAndLinking(testImage, showDebugImages);  
+
+        % Riempimento buchi
         segmentedImage = fillHoles(linkedEdges, showDebugImages);
         segmentedImage = imbinarize(segmentedImage);
 
-        %Estrazione carte, orientamento e ricezione dell'array di immagini
+        % Estrazione carte, orientamento e ricezione dell'array di immagini
         cardImages = extractAndRotateCards(segmentedImage, testImage);
 
         %Predico il tipo della carta estratta dalla foto
@@ -26,6 +28,7 @@ function upgraded_segmentation()
 
         predictedLabels = strings(1, length(cardImages));
         confidences = zeros(length(cardImages));
+        cardColors = cell(numel(cardImages), 1);
         classes = {'back', 'card_0' , 'card_1', 'card_2', 'card_3' , 'card_4', 'card_5', 'card_6' , 'card_7', 'card_8', 'card_9' , 'draw_card', 'reverse_card', 'skip_card', 'wild' , 'wild_draw'};
         for j = 1 : length(cardImages)
             % --- Per BoW_SURF_SVM ---
@@ -48,10 +51,13 @@ function upgraded_segmentation()
             confidences(j) = scores(find(scores == max(scores))) * 100;
  
             % --- Fine SimpleCNN ---
+
+            % Determinazione del colore della carta in analisi
+            cardColors{j} = determineCardColor(cardImages{j});
         end
 
         %Disegna le bounding box
-        [image_with_text, boundingboxes] = drawBoundingbox(segmentedImage, testImage, predictedLabels, confidences);
+        [image_with_text, boundingboxes] = drawBoundingbox(segmentedImage, testImage, predictedLabels, confidences, cardColors);
 
         if showDebugImages
             f = figure("Name", data_set_folder(i).name), f.WindowState = "maximized";
@@ -168,7 +174,7 @@ function filteredContours = filterContours(binaryImage, debug_flag)
     end
 end
 
-function [image_with_text, boundingboxes] = drawBoundingbox(segmented_image, original_image, predicted_labels, confidences)
+function [image_with_text, boundingboxes] = drawBoundingbox(segmented_image, original_image, predicted_labels, confidences, card_colors)
     %The regionprops function measures properties such as area, centroid, and bounding box, for each object (connected component) in an image
     %segmented_image = imbinarize(segmented_image);
     boundingboxes = regionprops(segmented_image, "BoundingBox");
@@ -186,7 +192,7 @@ function [image_with_text, boundingboxes] = drawBoundingbox(segmented_image, ori
         %positions = [positions; x, y];
         
         if areas(k).Area > 30000 && areas(k).Area < 35000
-            image_with_text = insertText(image_with_text, [x, y], predicted_labels(k) + " - " + confidences(k) + "%, colore", FontSize=18, TextBoxColor="red");
+            image_with_text = insertText(image_with_text, [x, y], predicted_labels(k) + " - " + confidences(k) + "%, " + card_colors{k}, FontSize=18, TextBoxColor="red");
         else
             image_with_text = insertText(image_with_text, [x, y], "unknown", FontSize=18, TextBoxColor="black");
         end
@@ -217,4 +223,43 @@ function cardImages = extractAndRotateCards(binaryImage, originalImage)
         % Aggiungi l'immagine ruotata all'array
         cardImages{end+1} = cardImage;
     end
+end
+
+function color = determineCardColor(cardImage)
+    % Ridimensiona l'immagine per facilitare l'analisi del colore
+    resizedCard = imresize(cardImage, [100, 100]);
+
+    % Converte l'immagine in spazio colore HSV
+    hsvImage = rgb2hsv(resizedCard);
+
+    % Estrae i canali H, S, V
+    H = hsvImage(:, :, 1);
+    S = hsvImage(:, :, 2);
+    V = hsvImage(:, :, 3);
+
+    % Definizione dei range per i colori principali
+    redMask = (H <= 0.11 | H >= 0.90) & S > 0.25 & V > 0.3;
+    blueMask = H > 0.51 & H < 0.90 & S > 0.35 & V > 0.3;
+    greenMask = H >= 0.22 & H <= 0.51 & S >  0.25 & V > 0.3;
+    yellowMask = H > 0.11 & H < 0.22 & S >  0.25 & V > 0.3;
+
+    % Definisci un elemento strutturante
+    se = strel('disk', 3);
+
+    % Applica un'operazione di apertura a ogni maschera
+    redMask = imopen(redMask, se);
+    blueMask = imopen(blueMask, se);
+    greenMask = imopen(greenMask, se);
+    yellowMask = imopen(yellowMask, se);
+
+    % Conta i pixel per ciascun colore
+    numRed = sum(redMask(:));
+    numBlue = sum(blueMask(:));
+    numGreen = sum(greenMask(:));
+    numYellow = sum(yellowMask(:));
+
+    % Determina il colore predominante
+    [~, idx] = max([1, numRed, numBlue, numGreen, numYellow]);
+    colors = {'unknown', 'Red', 'Blue', 'Green', 'Yellow'};
+    color = colors{idx};
 end
