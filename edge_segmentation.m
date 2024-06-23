@@ -2,7 +2,7 @@ function edge_segmentation()
     close all;
 
     % Carica l'immagine
-    training_img = 'data_set/uno-test-27.jpg';
+    training_img = 'data_set/uno-test-24.jpg';
 
     % Estrazione e visualizzazione degli edge
     edgeDetection(training_img);
@@ -109,10 +109,7 @@ function filteredContours = filterContours(binaryImage)
     end
 
     % Riempie i buchi nelle regioni connesse dell'immagine binaria
-    filteredContours = imerode(filteredContours, strel('disk', 17));
-    filteredContours = imdilate(filteredContours, strel('disk', 1));
-    filteredContours = imfill(filteredContours, 'holes');
-    filteredContours = imopen(filteredContours, strel('disk', 1));
+    
 end
 
 function cardImages = extractAndRotateCards(binaryImage, originalImage)
@@ -133,7 +130,7 @@ function cardImages = extractAndRotateCards(binaryImage, originalImage)
         
         % Estrai la maschera della regione corrispondente
         cardMask = imcrop(binaryImage, boundingBox);
-   
+  
         
         % Applica la maschera alla carta per mantenere solo i pixel della carta
         cardImageMasked = bsxfun(@times, cardImage, cast(cardMask, 'like', cardImage));
