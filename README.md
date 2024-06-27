@@ -52,6 +52,9 @@ The dataset contains images of complete UNO cards from various official and unof
 - Achieved approximately 90% accuracy with a much deeper and complex network structure.
 - Training took significantly longer (111 minutes) compared to the simple CNN.
 
+![image](https://github.com/FBLador/progetto-UNO/assets/44242903/41787104-25d7-449d-9455-c288d4503aa3)
+![image](https://github.com/FBLador/progetto-UNO/assets/44242903/4f63f1e1-e383-4058-85c3-a7909905e374)
+
 ## Color Identification
 - Uses color slicing to identify specific color ranges.
 - Handles errors where white is confused with blue in low light by generating a white mask.
