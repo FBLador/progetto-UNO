@@ -80,6 +80,3 @@ The dataset contains images of complete UNO cards from various official and unof
 
 ### Flavius Beniamin Lador (40%)
 - Image analysis assistance, script development for edge detection, hole filling, card extraction, and color identification, ResNet training and optimization, and ground truth creation for the test set.
-
-## Contact
-For more information or to contribute, please reach out to the project maintainers.
